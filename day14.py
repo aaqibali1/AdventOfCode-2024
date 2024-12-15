@@ -1,113 +1,36 @@
-import sys
-import z3
+from itertools import count
+from math import prod
 import re
-import heapq
-from collections import defaultdict, Counter, deque
-from sympy.solvers.solveset import linsolve
-import pyperclip as pc
 
-def pr(s):
-    print(s)
-    pc.copy(s)
+import numpy as np
 
-sys.setrecursionlimit(10**6)
+with open("input") as f:
+    ns = [list(map(int, re.findall("-?\\d+", x))) for x in f.read().strip().split("\n")]
 
-DIRS = [(-1, 0), (0, 1), (1, 0), (0, -1)]  # up right down left
+# Part 1
+w = 101
+h = 103
+qs = [0, 0, 0, 0]
+for px, py, vx, vy in ns:
+    px = (px + 100 * vx) % w
+    py = (py + 100 * vy) % h
+    if px != w // 2 and py != h // 2:
+        qs[(px > w // 2) + 2 * (py > h // 2)] += 1
+print(prod(qs))
 
-def ints(s):
-    return [int(x) for x in re.findall(r'-?\d+', s)]
+# Part 2
+zs = np.array([px + 1j * py for px, py, _, _ in ns])
+vs = np.array([vx + 1j * vy for _, _, vx, vy in ns])
+max_has_neighbour = 0
 
-# Set input file name to 'input.txt'
-infile = 'input.txt'
-D = open(infile).read().strip()
-
-G, instrs = D.split('\n\n')
-G = G.split('\n')
-
-def solve(G, part2):
-    R = len(G)
-    C = len(G[0])
-    G = [[G[r][c] for c in range(C)] for r in range(R)]
-    
-    if part2:
-        BIG_G = []
-        for r in range(R):
-            row = []
-            for c in range(C):
-                if G[r][c] == '#':
-                    row.append('#')
-                    row.append('#')
-                if G[r][c] == 'O':
-                    row.append('[')
-                    row.append(']')
-                if G[r][c] == '.':
-                    row.append('.')
-                    row.append('.')
-                if G[r][c] == '@':
-                    row.append('@')
-                    row.append('.')
-            BIG_G.append(row)
-        G = BIG_G
-        C *= 2
-
-    for r in range(R):
-        for c in range(C):
-            if G[r][c] == '@':
-                sr, sc = r, c
-                G[r][c] = '.'
-
-    r, c = sr, sc
-    for inst in instrs:
-        if inst == '\n':
-            continue
-        dr, dc = {'^': (-1, 0), '>': (0, 1), 'v': (1, 0), '<': (0, -1)}[inst]
-        rr, cc = r + dr, c + dc
-        if G[rr][cc] == '#':
-            continue
-        elif G[rr][cc] == '.':
-            r, c = rr, cc
-        elif G[rr][cc] in ['[', ']', 'O']:
-            Q = deque([(r, c)])
-            SEEN = set()
-            ok = True
-            while Q:
-                rr, cc = Q.popleft()
-                if (rr, cc) in SEEN:
-                    continue
-                SEEN.add((rr, cc))
-                rrr, ccc = rr + dr, cc + dc
-                if G[rrr][ccc] == '#':
-                    ok = False
-                    break
-                if G[rrr][ccc] == 'O':
-                    Q.append((rrr, ccc))
-                if G[rrr][ccc] == '[':
-                    Q.append((rrr, ccc))
-                    assert G[rrr][ccc + 1] == ']'
-                    Q.append((rrr, ccc + 1))
-                if G[rrr][ccc] == ']':
-                    Q.append((rrr, ccc))
-                    assert G[rrr][ccc - 1] == '['
-                    Q.append((rrr, ccc - 1))
-            if not ok:
-                continue
-            while len(SEEN) > 0:
-                for rr, cc in sorted(SEEN):
-                    rrr, ccc = rr + dr, cc + dc
-                    if (rrr, ccc) not in SEEN:
-                        assert G[rrr][ccc] == '.'
-                        G[rrr][ccc] = G[rr][cc]
-                        G[rr][cc] = '.'
-                        SEEN.remove((rr, cc))
-            r = r + dr
-            c = c + dc
-
-    ans = 0
-    for r in range(R):
-        for c in range(C):
-            if G[r][c] in ['[', 'O']:
-                ans += 100 * r + c
-    return ans
-
-pr(solve(G, False))
-pr(solve(G, True))
+for t in count(1):
+    zs = np.array([int(z.real) % w + (int(z.imag) % h) * 1j for z in zs + vs])
+    zs_set = set(zs)
+    num_has_neighbour = sum(z + dz in zs_set for z in zs for dz in (1, -1, 1j, -1j))
+    if num_has_neighbour > max_has_neighbour:
+        max_has_neighbour = num_has_neighbour
+        a = np.zeros((h, w), dtype=int)
+        a[zs.imag.astype(int), zs.real.astype(int)] = 1
+        print(t)
+        print("\n".join("".join(" ■"[x] for x in row) for row in a))
+        print()
